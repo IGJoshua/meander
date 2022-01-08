@@ -1,0 +1,18 @@
+#+TITLE: Notes
+#+STARTUP: noindent hidestars
+
+* Calling Convention
+* Example Program & IR
+
+#+BEGIN_SRC clojure
+(defn factorial
+  [n]
+  (if (pos? n)
+    (* n (factorial (dec n)))
+    1))
+
+(factorial 5)
+#+END_SRC
+
+#+BEGIN_SRC llvm
+#+END_SRC
