@@ -46,9 +46,12 @@
 
     ;; entrypoint
     global  _start
+
     ;; stdlib functions
     global  std__exit
     global  std__println
+    global  std__add_int
+    global  std__sub_int
 
     ;; main function of the executable
     extern  main
@@ -125,6 +128,62 @@ std__println:
     push    1
     mov     rbp, rsp
     jmp     rax                 ; call continuation with nil
+
+;;; std__add_int(args...)
+std__add_int:
+    mov     rax, 0              ; accumulator
+    mov     rcx, 0              ; arg index
+add_loop:
+    cmp     rcx, [rbp+arg_ct]   ; check if we've read the last argument
+    jge     plus_return         ; if there's none left to add, return
+    mov     r8, rcx
+    imul    r8, 16
+    mov     r9, [rbp+r8+arg1_t]
+    cmp     r9, int_t           ; is this an int?
+    jne     error               ; if not, exit with an error
+    add     rax, [rbp+r8+arg1]  ; add the argument
+    add     rcx, 1              ; increment the argument index
+    jmp     add_loop            ; loop for the next arg
+plus_return:
+    mov     rbp, r12
+    push    rax
+    push    int_t
+    push    1
+    mov     rbp, rsp
+    mov     rax, [r12+ret_addr]
+    jmp     rax
+
+;;; std__sub_int(args...)
+;;; acts as unary negation, or subtracts later elements from former
+std__sub_int:
+    mov     r8, [rbp+arg_ct]
+    cmp     r8, 1               ; check for exactly 1 arg
+    je      unary_neg           ; unary negate for one argument
+    mov     rcx, 1              ; arg index, start at 1 to not negate the first
+negate_loop:
+    mov     r8, [rbp+arg_ct]
+    cmp     rcx, r8             ; check if we're at the last argument
+    jge     std__add_int        ; if so, add them together
+    mov     r8, rcx
+    imul    r8, 16
+    mov     r9, [rbp+r8+arg1_t]
+    cmp     r9, int_t           ; check if it's an int
+    jne     error               ; if not, error
+    mov     rax, [rbp+r8+arg1]  ; grab the value to negate
+    neg     rax                 ; negate it
+    mov     [rbp+r8+arg1], rax  ; store it back
+    add     rcx, 1              ; increment the arg index
+    jmp     negate_loop         ; loop for the next arg
+
+unary_neg:
+    mov     r8, [rbp+arg1_t]    ; grab the arg type
+    cmp     r8, int_t           ; check if it's int
+    jne     error               ; if not, error
+    mov     rcx, [rbp+arg1]     ; grab the first arg
+    neg     rcx                 ; negate it
+    mov     [rbp+arg1], rcx     ; save the negated arg
+    mov     rax, [r12+ret_addr] ; grab return addr
+    jmp     rax                 ; return
 
 ;;; std__exit(exit_code: int_t) -> !
 ;;; terminates the program

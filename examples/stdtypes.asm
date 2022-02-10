@@ -31,3 +31,8 @@
     arg4    equ 64
     arg5_t  equ 72
     arg5    equ 80
+
+    ;; Helpers for the calling convention to refer to stack pointers
+    old_r12 equ 0
+    old_rbp equ 8
+    ret_addr equ 16

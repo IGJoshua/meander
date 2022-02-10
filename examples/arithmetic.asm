@@ -8,65 +8,83 @@
 
     default rel
 
-    global  meander_main
+    global  main
+
+    extern  std__exit
+    extern  std__add_int
+    extern  std__sub_int
+    extern  std__println
 
     section .text
-test_add:
-    push    post_sub            ; return address
-    push    rbp                 ; old base pointer
-    mov     r12, rsp            ; save old base pointer
-    sub     rsp, 8              ; empty
-    push    3                   ; arg2
-    push    int_t               ; arg2_t
-    push    2                   ; arg1
-    push    int_t               ; arg1_t
-    push    2                   ; arg_ct
-    mov     rbp, rsp            ; set base pointer
-    jmp     [std__minus wrt ..got] ; std__minus(2, 3) -> post_sub
-
-post_sub:
-    cmp     [rbp+arg_ct], 1     ; test arguments match those needed
-    jne     error
-    cmp     [rbp+arg1_t], int_t
-    jne     error
-    mov     rax, [rbp + arg1]
-    mov     rsp, r12
-    pop     rbp
-    add     rsp, 8              ; ignore the return address because this is a cont
-
-    push    done
+main:
+    lea     rax, [main__sum]
+    push    rax
     push    rbp
+    push    r12
     mov     r12, rsp
-    sub     rsp, 8
+    push    3
+    push    int_t
+    push    2
+    push    int_t
+    push    2
+    mov     rbp, rsp
+    jmp     [std__sub_int wrt ..got] ; std__sub_int(2, 3) -> main__sum
+main__sum:
+    mov     r8, [rbp+arg_ct]
+    cmp     r8, 1
+    jne     error
+    mov     r8, [rbp+arg1_t]
+    cmp     r8, int_t
+    jne     error
+    mov     rax, [rbp+arg1]
+    mov     rsp, r12
     push    4
     push    int_t
     push    rax
     push    int_t
     push    2
     mov     rbp, rsp
-    jmp     [std__plus wrt ..got] ; std__plus(rax, 4) -> done
-
-done:
-    mov     rsp, r12
-    pop     rbp
-    add     rsp, 8              ; ignore the args
-    push    0                   ; no return address
-    push    rbp                 ; base pointer
-    mov     r12, rsp
-    sub     rsp, 8
-    push    0
-    push    int_t
-    push    1
-    mov     rbp, rsp
+    lea     r8, [main__exit]
+    mov     [r12+ret_addr], r8
+    jmp     [std__add_int wrt ..got] ; std__add_int(x, 4) -> exit
+main__exit:
+    mov     r8, [rbp+arg_ct]
+    cmp     r8, 1
+    jne     error
+    mov     r8, [rbp+arg1_t]
+    cmp     r8, int_t
+    jne     error
     jmp     [std__exit wrt ..got]
 
 error:
-    push    0                   ; no valid return address
-    push    rbp                 ; save the base pointer
+    mov     rax, rsp            ; align the stack if it's misaligned
+    mov     rdx, 0
+    mov     rcx, 16
+    div     rcx
+    cmp     rdx, 0
+    je      error__print
+    sub     rsp, 8
+error__print:
+    lea     rax, [error__exit]
+    push    rax
+    push    rbp
+    push    r12
     mov     r12, rsp
-    sub     rsp, 8              ; empty
-    push    1                   ; arg1
-    push    int_t               ; arg1_t
-    push    1                   ; arg_ct
-    mov     rbp, rsp            ; set base pointer
-    jmp     [std__exit wrt ..got] ; std__exit(2, 3) -> !
+    push    error_msg
+    push    string_t
+    push    1
+    mov     rbp, rsp
+    jmp     [std__println wrt ..got] ; std__println(error_msg) -> error__exit
+error__exit:
+    ;; ignore arguments
+    mov     rsp, r12
+    push    69
+    push    int_t
+    push    1
+    mov     rbp, rsp
+    jmp     [std__exit wrt ..got] ; std__exit(-1) -> !
+
+    section .data
+    align 16
+error_msg: dq 21                ; size of message
+    db "Encountered an error", 10 ; message
